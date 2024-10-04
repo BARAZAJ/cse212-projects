@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.IO;
 using System.Text.Json;
 
 public static class SetsAndMaps
@@ -22,7 +26,29 @@ public static class SetsAndMaps
     public static string[] FindPairs(string[] words)
     {
         // TODO Problem 1 - ADD YOUR CODE HERE
-        return [];
+         // HashSet to track seen words
+        var seenWords = new HashSet<string>();
+        var result = new List<string>();
+
+        foreach (var word in words)
+        {
+            // Reverse the word to check for its symmetric pair
+            var reverseWord = new string(new char[] { word[1], word[0] });
+
+            // Check if reverseWord exists in the set and is not the same as the current word (to avoid 'aa' type cases)
+            if (seenWords.Contains(reverseWord))
+            {
+                result.Add($"{word} & {reverseWord}");
+            }
+            else
+            {
+                // Add current word to the set if its reverse is not found
+                seenWords.Add(word);
+            }
+        }
+
+        return result.ToArray();
+        
     }
 
     /// <summary>
@@ -43,6 +69,24 @@ public static class SetsAndMaps
         {
             var fields = line.Split(",");
             // TODO Problem 2 - ADD YOUR CODE HERE
+            // Ensure there are at least 4 columns in the line
+            if (fields.Length >= 4)
+            {
+                // Get the degree from the 4th column (index 3)
+                var degree = fields[3].Trim();
+
+                // Check if the degree is already in the dictionary
+                if (degrees.ContainsKey(degree))
+                {
+                    // Increment the count if the degree exists
+                    degrees[degree]++;
+                }
+                else
+                {
+                    // Add the degree with an initial count of 1 if it's not in the dictionary
+                    degrees[degree] = 1;
+                }
+            }
         }
 
         return degrees;
@@ -66,9 +110,66 @@ public static class SetsAndMaps
     /// </summary>
     public static bool IsAnagram(string word1, string word2)
     {
-        // TODO Problem 3 - ADD YOUR CODE HERE
-        return false;
+
+
+        // Normalize both words: convert to lowercase and remove spaces
+        word1 = word1.ToLower().Replace(" ", "");
+        word2 = word2.ToLower().Replace(" ", "");
+
+        // If the lengths are different, they can't be anagrams
+        if (word1.Length != word2.Length)
+        {
+            return false;
+        }
+
+        // Create dictionaries to count character frequencies for both words
+        var charCount1 = new Dictionary<char, int>();
+        var charCount2 = new Dictionary<char, int>();
+
+        // Count characters in word1
+        foreach (var c in word1)
+        {
+            if (charCount1.ContainsKey(c))
+            {
+                charCount1[c]++;
+            }
+            else
+            {
+                charCount1[c] = 1;
+            }
+        }
+
+        // Count characters in word2
+        foreach (var c in word2)
+        {
+            if (charCount2.ContainsKey(c))
+            {
+                charCount2[c]++;
+            }
+            else
+            {
+                charCount2[c] = 1;
+            }
+        }
+
+        // Compare both dictionaries
+        foreach (var kvp in charCount1)
+        {
+            // If the character is not in word2 or the counts don't match, return false
+            if (!charCount2.ContainsKey(kvp.Key) || charCount2[kvp.Key] != kvp.Value)
+            {
+                return false;
+            }
+        }
+            // TODO Problem 3 - ADD YOUR CODE HERE
+        // If all character counts match, the words are anagrams
+        return true;
     }
+
+
+
+        // TODO Problem 3 - ADD YOUR CODE HERE
+   
 
     /// <summary>
     /// This function will read JSON (Javascript Object Notation) data from the 
@@ -87,20 +188,40 @@ public static class SetsAndMaps
     public static string[] EarthquakeDailySummary()
     {
         const string uri = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson";
+        
         using var client = new HttpClient();
         using var getRequestMessage = new HttpRequestMessage(HttpMethod.Get, uri);
         using var jsonStream = client.Send(getRequestMessage).Content.ReadAsStream();
         using var reader = new StreamReader(jsonStream);
+        
+        // Read the JSON response
         var json = reader.ReadToEnd();
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-
+        
+        // Deserialize the JSON into the FeatureCollection object
         var featureCollection = JsonSerializer.Deserialize<FeatureCollection>(json, options);
 
-        // TODO Problem 5:
-        // 1. Add code in FeatureCollection.cs to describe the JSON using classes and properties 
-        // on those classes so that the call to Deserialize above works properly.
-        // 2. Add code below to create a string out each place a earthquake has happened today and its magitude.
-        // 3. Return an array of these string descriptions.
-        return [];
+        // Initialize a list to store the formatted strings
+        var earthquakeSummaries = new List<string>();
+
+        // Check if the deserialization succeeded and process the features
+        if (featureCollection != null && featureCollection.Features != null)
+        {
+            foreach (var feature in featureCollection.Features)
+            {
+                // Extract the place and magnitude (handling cases where mag might be null)
+                var place = feature.Properties.Place;
+                var mag = feature.Properties.Mag;
+
+                if (place != null && mag.HasValue)
+                {
+                    // Format the string as "place - Mag mag_value"
+                    earthquakeSummaries.Add($"{place} - Mag {mag.Value:F2}");
+                }
+            }
+        }
+
+        // Return the formatted summary as an array
+        return earthquakeSummaries.ToArray();
     }
 }
